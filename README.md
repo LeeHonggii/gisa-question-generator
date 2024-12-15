@@ -1,2 +1,117 @@
 # 정보처리기사 문제 생성기
-Generate Information Processing Engineer Certification exam questions using Retrieval Augmented Generation (RAG) system and LLM. Provides various types of questions based on official certification materials
+
+이 프로젝트는 정보처리기사 시험 준비를 돕기 위한 문제 생성기입니다. RAG(Retrieval-Augmented Generation)를 활용하여 실제 학습 내용과 예시 문제를 기반으로 새로운 문제를 생성합니다.
+
+## 특징
+- 5개 과목별 문제 생성
+- 과목별 세부 주제 선택 가능
+- 난이도별(상/중/하) 문제 생성
+- 내가 실제 학습 내용과 모르는 예시 문제를 기반으로 한 문제 생성
+- 상세한 해설 제공
+- RAG 사용/미사용 선택 가능
+
+## 설치 방법
+
+1. 필요한 패키지 설치:
+```bash
+pip install fastapi uvicorn python-dotenv langchain-openai jinja2
+```
+
+2. OpenAI API 키 설정:
+- `.env` 파일을 생성하고 API 키 입력
+```
+OPENAI_API_KEY=your_api_key_here
+```
+
+## 데이터 준비
+
+1. `input_texts` 디렉토리 생성
+
+2. 학습 내용과 문제를 다음 형식으로 텍스트 파일 작성:
+```text
+과목 1: 소프트웨어 설계 주제: 요구사항 분석
+
+===세트 시작===
+참고내용:
+요구사항 분석의 주요 개념:
+* 개념 설명
+* 주요 내용
+핵심 용어: 용어1, 용어2
+
+예시문제: None  # 예시 문제가 없는 경우
+
+또는
+
+예시문제:        # 예시 문제가 있는 경우
+난이도: 상/중/하
+문제: 문제 내용
+①보기1
+②보기2
+③보기3
+④보기4
+정답: 번호
+해설: 해설 내용
+===세트 끝===
+```
+
+3. 데이터셋 생성:
+```bash
+python make_dataset.py
+```
+
+## 사용 방법
+
+### RAG 기반 문제 생성 (참고 자료 활용)
+```bash
+python main.py
+```
+
+### 일반 문제 생성 (GPT만 사용)
+```bash
+python main2.py
+```
+
+웹 브라우저에서:
+1. `http://localhost:8000` 접속
+2. 과목, 주제, 난이도 선택
+3. "문제 생성" 버튼 클릭
+
+## 데이터 추가 방법
+
+1. 정보처리기사 공부 중 어려웠던 내용이나 중요한 개념을 발견하면:
+   - 개념 정리 → 참고내용에 추가
+   - 관련 예시 문제가 있다면 → 예시문제에 추가
+   - 예시 문제가 없다면 → 예시문제: None 으로 입력
+
+2. 틀린 문제나 헷갈렸던 문제를 만나면:
+   - 문제와 관련된 개념 정리 → 참고내용에 추가
+   - 해당 문제를 예시문제 형식으로 변환하여 추가
+
+3. `make_dataset.py` 실행으로 데이터 업데이트
+
+## 프로젝트 구조
+```
+gisa-question-generator/
+├── main.py                 # RAG 기반 FastAPI 서버
+├── main2.py               # 일반 GPT 기반 FastAPI 서버
+├── make_dataset.py         # 데이터셋 생성 스크립트
+├── input_texts/            # 원본 텍스트 파일 디렉토리
+├── image/                  # 이미지 디렉토리
+│   └── page.JPG           # 예시 화면 이미지
+├── templates/              # HTML 템플릿
+│   └── index.html         # 웹 인터페이스
+├── gisa_questions.json     # 생성된 데이터셋
+└── .env                    # 환경 변수
+```
+
+## 사용 예시 화면
+
+![정보처리기사 문제 생성기 화면](image/page.JPG)
+
+## 주의사항
+- 이 프로젝트는 학습 보조 도구입니다
+- 생성된 문제의 정확성을 항상 검증하세요
+- OpenAI API 사용료가 발생할 수 있습니다
+- RAG 모드와 일반 모드의 차이점을 이해하고 사용하세요:
+  - RAG 모드: 실제 학습 내용과 예시 문제를 참고하여 더 정확한 문제 생성
+  - 일반 모드: GPT의 지식만을 활용한 문제 생성
