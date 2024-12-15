@@ -1,71 +1,131 @@
+# main.py
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
+import uvicorn
 
 # API KEY 정보로드
 load_dotenv()
 
+app = FastAPI()
+
+# 정적 파일과 템플릿 설정
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# CORS 설정
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 과목 정보 매핑
+SUBJECTS = {
+    "1": "소프트웨어 설계",
+    "2": "소프트웨어 개발",
+    "3": "데이터베이스 구축",
+    "4": "프로그래밍 언어 활용",
+    "5": "정보시스템 구축 관리",
+}
+
 # ChatOpenAI 모델 초기화
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.7)
+llm = ChatOpenAI(model_name="gpt-4", temperature=0.7)
 
-# 음식 레시피 프롬프트 템플릿 예시
-recipe_template = PromptTemplate(
-    input_variables=["dish_name", "servings"],
+# 문제 생성 템플릿
+exam_template = PromptTemplate(
+    input_variables=["subject", "subject_name", "topic", "difficulty"],
     template="""
-    {dish_name} {servings}인분 레시피를 다음 형식으로 알려주세요:
+    정보처리기사 {subject}과목({subject_name}) {topic} 관련 {difficulty}난이도 문제를 다음 형식으로 출제해주세요:
 
-    1. 필요한 재료
-    2. 조리 시간
-    3. 조리 난이도
-    4. 상세 조리 방법
-    5. 조리 팁
-
-    실제 요리사가 설명하는 것처럼 자세하게 설명해주세요.
-    """
-)
-
-# 여행 계획 프롬프트 템플릿 예시
-travel_template = PromptTemplate(
-    input_variables=["destination", "days", "budget"],
-    template="""
-    {destination}로 {days}일 여행을 가려고 합니다. 예산은 {budget}원 입니다.
-    다음 사항을 고려한 여행 일정을 만들어주세요:
-
-    1. 일자별 방문할 관광지
-    2. 숙소 추천
-    3. 식당 추천
-    4. 예산 분배 방안
-    5. 현지 교통 정보
-
-    현지 여행 전문가처럼 실용적인 정보를 제공해주세요.
-    """
-)
-
-# 프롬프트 템플릿 사용 예시
-def get_recipe(dish_name: str, servings: int):
-    # 프롬프트 생성
-    prompt = recipe_template.format(dish_name=dish_name, servings=servings)
-    # LLM에 프롬프트 전달
-    response = llm.invoke(prompt)
-    return response
-
-def get_travel_plan(destination: str, days: int, budget: int):
-    # 프롬프트 생성
-    prompt = travel_template.format(
-        destination=destination,
-        days=days,
-        budget=budget
-    )
-    # LLM에 프롬프트 전달
-    response = llm.invoke(prompt)
-    return response
-
-# 사용 예시
-if __name__ == "__main__":
-    # 레시피 얻기
-    recipe = get_recipe("김치찌개", 4)
-    print(recipe)
+    [문제]
+    (배점: 2점)
     
-    # 여행 계획 얻기
-    travel_plan = get_travel_plan("제주도", 3, 500000)
-    print(travel_plan)
+    [보기]
+    ① 
+    ② 
+    ③ 
+    ④ 
+    
+    [정답]
+    
+    [해설]
+    각 보기를 하나씩 설명하고 왜 해당 답이 정답인지 명확하게 설명해주세요.
+    """,
+)
+
+
+class QuestionRequest(BaseModel):
+    subject: str
+    topic: str
+    difficulty: str
+
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.post("/generate-question")
+async def generate_question(request: Request):
+    try:
+        # 요청 데이터 읽기
+        data = await request.json()
+        print("Received data:", data)  # 디버깅을 위한 출력
+
+        # QuestionRequest 모델로 변환
+        question_request = QuestionRequest(**data)
+
+        subject_name = SUBJECTS.get(question_request.subject, "")
+
+        # 프롬프트 생성
+        prompt = exam_template.format(
+            subject=question_request.subject,
+            subject_name=subject_name,
+            topic=question_request.topic,
+            difficulty=question_request.difficulty,
+        )
+
+        # LLM에 프롬프트 전달
+        response = llm.invoke(prompt)
+
+        # 응답 파싱
+        content = response.content
+        parts = content.split("[문제]")[1].split("[보기]")
+        question = parts[0].strip()
+
+        options_and_rest = parts[1].split("[정답]")
+        options = [
+            opt.strip()
+            for opt in options_and_rest[0].strip().split("\n")
+            if opt.strip()
+        ]
+
+        answer_and_explanation = options_and_rest[1].split("[해설]")
+        answer = answer_and_explanation[0].strip()
+        explanation = answer_and_explanation[1].strip()
+
+        return JSONResponse(
+            content={
+                "question": question,
+                "options": options,
+                "answer": answer,
+                "explanation": explanation,
+            }
+        )
+
+    except Exception as e:
+        print("Error:", str(e))  # 디버깅을 위한 출력
+        return JSONResponse(status_code=422, content={"detail": str(e)})
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
