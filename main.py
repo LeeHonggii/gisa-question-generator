@@ -8,8 +8,6 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 import json
-import random
-import uvicorn
 
 # API KEY 정보로드
 load_dotenv()
@@ -29,17 +27,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 과목 정보 매핑
-SUBJECTS = {
-    "1": "소프트웨어 설계",
-    "2": "소프트웨어 개발",
-    "3": "데이터베이스 구축",
-    "4": "프로그래밍 언어 활용",
-    "5": "정보시스템 구축 관리",
-}
+class QuestionRequest(BaseModel):
+    subject: str
+    topic: str
+    difficulty: str
 
-
-# JSON 데이터 로드
 def load_question_data():
     try:
         with open("gisa_questions.json", "r", encoding="utf-8") as f:
@@ -48,31 +40,45 @@ def load_question_data():
         print(f"데이터 로드 중 오류 발생: {str(e)}")
         return {}
 
+def find_example_questions(data, subject, topic, difficulty):
+    """선택된 과목, 토픽, 난이도에 맞는 예시 문제들을 찾음"""
+    examples = []
+    
+    if subject in data and topic in data[subject]["topics"]:
+        sets = data[subject]["topics"][topic]["sets"]
+        for set_data in sets:
+            if set_data["example"]["difficulty"] == difficulty:
+                examples.append(set_data["example"])
+    
+    return examples
 
-question_data = load_question_data()
+def format_example_questions(examples):
+    """예시 문제들을 프롬프트용 텍스트로 변환"""
+    if not examples:
+        return "선택한 난이도의 예시 문제가 없습니다."
+    
+    formatted = "예시 문제들:\n\n"
+    for i, example in enumerate(examples, 1):
+        formatted += f"예시 {i})\n"
+        formatted += f"문제: {example['question']}\n"
+        formatted += "보기:\n"
+        for j, option in enumerate(example['options'], 1):
+            formatted += f"①{option}\n"
+        formatted += f"정답: {example['answer']}\n"
+        formatted += f"해설: {example['explanation']}\n\n"
+    
+    return formatted
 
-# ChatOpenAI 모델 초기화
-llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
-
-# 문제 생성 템플릿
+# 문제 생성 템플릿 수정
 exam_template = PromptTemplate(
-    input_variables=[
-        "subject",
-        "subject_name",
-        "topic",
-        "difficulty",
-        "reference",
-        "example",
-    ],
+    input_variables=["subject_name", "topic", "difficulty", "examples"],
     template="""
-    정보처리기사 {subject}과목({subject_name})의 {topic} 관련 {difficulty}난이도 문제를 생성해주세요.
+    정보처리기사 {subject_name}의 {topic} 관련 {difficulty}난이도 문제를 생성해주세요.
 
-    {reference}
+    {examples}
 
-    예시 문제:
-    {example}
-
-    위 내용을 참고하여 새로운 문제를 다음 형식으로 생성해주세요:
+    위 예시들을 참고하여 비슷한 난이도와 형식으로 새로운 문제를 생성해주세요.
+    생성할 때는 다음 형식을 지켜주세요:
     
     ##[문제]
     
@@ -88,85 +94,62 @@ exam_template = PromptTemplate(
     각 보기를 하나씩 설명하고 왜 해당 답이 정답인지 명확하게 설명해주세요.
     """,
 )
-
-
-class QuestionRequest(BaseModel):
-    subject: str
-    topic: str
-    difficulty: str
+@app.get("/get-topics")
+async def get_topics():
+    """JSON 파일에서 과목별 토픽 정보를 가져옴"""
+    question_data = load_question_data()
+    return question_data
 
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-
 @app.post("/generate-question")
 async def generate_question(request: QuestionRequest):
-    subject_name = SUBJECTS.get(request.subject, "")
-
-    # 참고 내용과 예시 문제 찾기
-    reference_text = ""
-    example_text = ""
-
-    if request.subject in question_data:
-        subject_data = question_data[request.subject]
-        if request.topic in subject_data["topics"]:
-            topic_sets = subject_data["topics"][request.topic]["sets"]
-            if topic_sets:
-                # 난이도에 맞는 세트 찾기
-                matching_sets = [
-                    s
-                    for s in topic_sets
-                    if s["example"]["difficulty"] == request.difficulty
-                ]
-                if matching_sets:  # 매칭되는 세트가 있는 경우에만 선택
-                    selected_set = random.choice(matching_sets)
-
-                reference_text = (
-                    "참고 내용:\n" + selected_set["reference"]
-                    if selected_set["reference"]
-                    else ""
-                )
-                example_text = f"""
-난이도: {selected_set['example']['difficulty']}
-문제: {selected_set['example']['question']}
-보기:
-{''.join(f'①{selected_set["example"]["options"][0]}' if len(selected_set["example"]["options"]) > 0 else '')}
-{''.join(f'②{selected_set["example"]["options"][1]}' if len(selected_set["example"]["options"]) > 1 else '')}
-{''.join(f'③{selected_set["example"]["options"][2]}' if len(selected_set["example"]["options"]) > 2 else '')}
-{''.join(f'④{selected_set["example"]["options"][3]}' if len(selected_set["example"]["options"]) > 3 else '')}
-정답: {selected_set['example']['answer']}
-해설: {selected_set['example']['explanation']}
-"""
-
+    # 데이터 로드
+    question_data = load_question_data()
+    
+    # 과목명 가져오기
+    subject_name = question_data[request.subject]["name"]
+    
+    # 예시 문제 찾기
+    examples = find_example_questions(
+        question_data, 
+        request.subject, 
+        request.topic,
+        request.difficulty
+    )
+    
+    # 예시 문제 포맷팅
+    formatted_examples = format_example_questions(examples)
+    
+    # ChatGPT 초기화
+    llm = ChatOpenAI(model_name="gpt-4", temperature=0.7)
+    
     # 프롬프트 생성
     prompt = exam_template.format(
-        subject=request.subject,
         subject_name=subject_name,
         topic=request.topic,
         difficulty=request.difficulty,
-        reference=reference_text if reference_text else "참고 내용이 없습니다.",
-        example=example_text if example_text else "예시 문제가 없습니다.",
+        examples=formatted_examples
     )
 
     # LLM에 프롬프트 전달
     response = llm.invoke(prompt)
-
+    
     # 응답 파싱
     content = response.content
     parts = content.split("[문제]")[1].split("[보기]")
     question = parts[0].strip()
-
+    
     options_and_rest = parts[1].split("[정답]")
-    options = [
-        opt.strip() for opt in options_and_rest[0].strip().split("\n") if opt.strip()
-    ]
-
+    options = [opt.strip() for opt in options_and_rest[0].strip().split("\n") if opt.strip()]
+    
     answer_and_explanation = options_and_rest[1].split("[해설]")
     answer = answer_and_explanation[0].strip()
     explanation = answer_and_explanation[1].strip()
-
+    
     return {
         "question": question,
         "options": options,
@@ -174,6 +157,6 @@ async def generate_question(request: QuestionRequest):
         "explanation": explanation,
     }
 
-
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

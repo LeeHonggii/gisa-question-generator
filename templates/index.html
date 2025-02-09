@@ -57,45 +57,25 @@
     </div>
 
     <script>
-        // 과목별 문제 유형 정의
-        const topicsBySubject = {
-            "1": [
-                "요구사항 분석",
-                "UML 다이어그램",
-                "소프트웨어 생명주기",
-                "객체지향 프로그래밍",
-                "디자인 패턴",
-                "아키텍처 설계",
-            ],
-            "2": [
-                "테스트 기법",
-                "SQL 작성",
-                "통합 구현",
-                "개발 도구",
-                "형상 관리",
-            ],
-            "3": [
-                "데이터베이스 설계",
-                "정규화",
-                "트랜잭션",
-                "SQL 최적화",
-                "인덱스 설계",
-            ],
-            "4": [
-                "Java",
-                "Python",
-                "C언어",
-                "자료구조",
-                "알고리즘",
-            ],
-            "5": [
-                "소프트웨어 개발 방법론",
-                "IT 프로젝트 관리",
-                "서버 관리",
-                "보안",
-                "네트워크",
-            ]
-        };
+        let topicsBySubject = {};
+
+        // 초기화 시 토픽 데이터 로드
+        async function loadTopics() {
+            try {
+                const response = await fetch('/get-topics');
+                if (!response.ok) {
+                    throw new Error('토픽 데이터를 불러오는데 실패했습니다.');
+                }
+                const data = await response.json();
+                topicsBySubject = data;
+            } catch (error) {
+                console.error('Error loading topics:', error);
+                alert('토픽 데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 페이지 로드 시 토픽 데이터 가져오기
+        loadTopics();
 
         const subjectSelect = document.getElementById('subject');
         const topicSelect = document.getElementById('topic');
@@ -111,9 +91,11 @@
             const subject = subjectSelect.value;
             topicSelect.innerHTML = '<option value="">문제 유형 선택</option>';
             
-            if (subject) {
+            if (subject && topicsBySubject[subject]) {
                 topicSelect.disabled = false;
-                topicsBySubject[subject].forEach(topic => {
+                // topics 객체의 키들을 가져와서 정렬
+                const topics = Object.keys(topicsBySubject[subject].topics).sort();
+                topics.forEach(topic => {
                     const option = document.createElement('option');
                     option.value = topic;
                     option.textContent = topic;
@@ -169,9 +151,9 @@
                 // 보기 표시
                 const optionsList = document.getElementById('options');
                 optionsList.innerHTML = '';
-                data.options.forEach(option => {
+                data.options.forEach((option, index) => {
                     const li = document.createElement('li');
-                    li.textContent = option;
+                    li.textContent = `${index + 1}. ${option}`;
                     optionsList.appendChild(li);
                 });
                 optionsSection.classList.remove('hidden');
