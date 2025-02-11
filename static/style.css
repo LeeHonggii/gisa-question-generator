@@ -3,21 +3,23 @@ body {
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
-    background-color: #f5f5f5;
+    background-color: #1a1a1a;
+    color: #e6e6e6;
 }
 
 .container {
-    background-color: white;
+    background-color: #2d2d2d;
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 h1 {
-    color: #333;
+    color: #ffffff;
     text-align: center;
 }
 
+/* 컨트롤 영역 스타일 */
 .controls {
     display: flex;
     gap: 10px;
@@ -27,9 +29,11 @@ h1 {
 
 select, button {
     padding: 10px;
-    border: 1px solid #ddd;
+    border: 1px solid #404040;
     border-radius: 5px;
     font-size: 16px;
+    background-color: #333333;
+    color: #ffffff;
 }
 
 select {
@@ -37,8 +41,13 @@ select {
     min-width: 200px;
 }
 
+select option {
+    background-color: #333333;
+    color: #ffffff;
+}
+
 button {
-    background-color: #007bff;
+    background-color: #0066cc;
     color: white;
     border: none;
     cursor: pointer;
@@ -47,26 +56,29 @@ button {
 }
 
 button:hover {
-    background-color: #0056b3;
+    background-color: #0052a3;
 }
 
 button:disabled {
-    background-color: #ccc;
+    background-color: #404040;
     cursor: not-allowed;
 }
 
+/* 섹션 스타일 */
 .section {
     margin-bottom: 20px;
     padding: 15px;
-    border: 1px solid #ddd;
+    border: 1px solid #404040;
     border-radius: 5px;
+    background-color: #333333;
 }
 
 .section h2 {
     margin-top: 0;
-    color: #444;
+    color: #ffffff;
 }
 
+/* 보기 스타일 */
 .options {
     list-style-type: none;
     padding: 0;
@@ -74,13 +86,60 @@ button:disabled {
 
 .options li {
     margin-bottom: 10px;
+    white-space: pre-wrap;
+    color: #e6e6e6;
 }
 
+/* 유틸리티 클래스 */
 .hidden {
     display: none;
 }
 
 #loading {
     text-align: center;
-    color: #666;
+    color: #999999;
+}
+
+/* 마크다운 스타일 */
+#explanation {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #e6e6e6;
+}
+
+#question, #answer, #explanation {
+    line-height: 1.6;
+    color: #e6e6e6;
+}
+
+/* 마크다운 강조 스타일 */
+strong {
+    font-weight: 600;
+    color: #58a6ff;
+}
+
+/* 정답 스타일 */
+#answer {
+    font-weight: bold;
+    color: #58a6ff;
+}
+
+/* GitHub 마크다운 다크 모드 오버라이드 */
+.markdown-body {
+    color: #e6e6e6 !important;
+    background-color: transparent !important;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    color: #ffffff !important;
+}
+
+.markdown-body strong {
+    color: #58a6ff !important;
 }

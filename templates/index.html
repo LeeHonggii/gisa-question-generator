@@ -5,6 +5,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>정보처리기사 문제 생성기</title>
         <link rel="stylesheet" href="/static/style.css">
+        <!-- GitHub 마크다운 스타일 -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.0/github-markdown.min.css">
     </head>
 <body>
     <div class="container">
@@ -36,19 +38,19 @@
 
         <div id="loading" class="hidden">문제 생성 중...</div>
         
-        <div id="questionSection" class="section hidden">
+        <div id="questionSection" class="section hidden markdown-body">
             <h2>문제</h2>
             <div id="question"></div>
         </div>
         
-        <div id="optionsSection" class="section hidden">
+        <div id="optionsSection" class="section hidden markdown-body">
             <h2>보기</h2>
             <ul id="options" class="options"></ul>
         </div>
         
         <button id="toggleAnswerBtn" class="hidden">정답 및 해설 보기</button>
         
-        <div id="answerSection" class="section hidden">
+        <div id="answerSection" class="section hidden markdown-body">
             <h2>정답</h2>
             <div id="answer"></div>
             <h2>해설</h2>
@@ -93,7 +95,6 @@
             
             if (subject && topicsBySubject[subject]) {
                 topicSelect.disabled = false;
-                // topics 객체의 키들을 가져와서 정렬
                 const topics = Object.keys(topicsBySubject[subject].topics).sort();
                 topics.forEach(topic => {
                     const option = document.createElement('option');
@@ -145,22 +146,23 @@
                 console.log('Received data:', data);
 
                 // 문제 표시
-                document.getElementById('question').textContent = data.question;
+                document.getElementById('question').innerHTML = data.question;
                 questionSection.classList.remove('hidden');
 
                 // 보기 표시
                 const optionsList = document.getElementById('options');
                 optionsList.innerHTML = '';
-                data.options.forEach((option, index) => {
+                const markers = ['①', '②', '③', '④'];
+                data.options.slice(0, 4).forEach((option, index) => {
                     const li = document.createElement('li');
-                    li.textContent = `${index + 1}. ${option}`;
+                    li.innerHTML = `${markers[index]} ${option}`;
                     optionsList.appendChild(li);
                 });
                 optionsSection.classList.remove('hidden');
 
                 // 정답과 해설 설정
-                document.getElementById('answer').textContent = data.answer;
-                document.getElementById('explanation').textContent = data.explanation;
+                document.getElementById('answer').textContent = `${data.answer}번`;
+                document.getElementById('explanation').innerHTML = data.explanation;
                 
                 // 정답 보기 버튼 표시
                 toggleAnswerBtn.classList.remove('hidden');
