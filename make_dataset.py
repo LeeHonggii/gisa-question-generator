@@ -46,11 +46,10 @@ def parse_markdown_file(file_path):
         if question_match:
             question_data["question"] = question_match.group(1).strip()
 
-        # 보기 파싱 - 수정된 부분
+        # 보기 파싱
         options_section = re.search(r'\*\*보기\*\*\s*([\s\S]*?)\s*\*\*정답\*\*', question)
         if options_section:
             options_text = options_section.group(1)
-            # 1. 2. 3. 4. 형식의 보기를 찾음
             options = re.findall(r'\d\.\s*(.*?)(?=(?:\d\.|$|\*\*정답\*\*))', options_text, re.DOTALL)
             question_data["options"] = [opt.strip() for opt in options if opt.strip()]
 
@@ -69,7 +68,7 @@ def parse_markdown_file(file_path):
             question_data["difficulty"],
             question_data["category"],
             question_data["question"],
-            question_data["options"],  # 보기가 비어있지 않은지 확인
+            question_data["options"],
             question_data["answer"],
             question_data["explanation"]
         ]):
@@ -83,6 +82,15 @@ def parse_markdown_file(file_path):
 def create_dataset(base_dir):
     """디렉토리 구조를 순회하며 데이터셋 생성"""
     data = {}
+    
+    # 과목 정보
+    SUBJECTS = {
+        "1": "소프트웨어 설계",
+        "2": "소프트웨어 개발",
+        "3": "데이터베이스 구축",
+        "4": "프로그래밍 언어 활용",
+        "5": "정보시스템 구축 관리"
+    }
     
     # 각 과목 폴더 처리
     for subject_num in range(1, 6):
@@ -110,7 +118,7 @@ def create_dataset(base_dir):
             sets = []
             for q in questions:
                 set_data = {
-                    "reference": "",  # 참고 내용은 현재 없음
+                    "reference": "",
                     "example": {
                         "difficulty": q["difficulty"],
                         "question": q["question"],
@@ -130,22 +138,21 @@ def create_dataset(base_dir):
     return data
 
 def main():
-    # 과목 정보
-    global SUBJECTS
-    SUBJECTS = {
-        "1": "소프트웨어 설계",
-        "2": "소프트웨어 개발",
-        "3": "데이터베이스 구축",
-        "4": "프로그래밍 언어 활용",
-        "5": "정보시스템 구축 관리"
-    }
+    # 사용자로부터 폴더 경로 입력 받기
+    print("정보처리기사 문제 폴더의 경로를 입력해주세요.")
+    print("예시: C:\\Users\\username\\Desktop\\study\\정보처리기사")
+    base_dir = input("폴더 경로: ").strip()
+    
+    # 경로가 존재하는지 확인
+    if not os.path.exists(base_dir):
+        print("Error: 입력한 경로가 존재하지 않습니다.")
+        return
 
-    # 기본 디렉토리 경로
-    base_dir = Path(r"C:\Users\cava2\Desktop\study\정보처리기사")
     output_file = "gisa_questions.json"
+    base_dir = Path(base_dir)
 
     # 디버깅: 실제 폴더 구조 확인
-    print("현재 경로:", base_dir)
+    print("\n현재 경로:", base_dir)
     print("존재하는 폴더들:")
     for item in base_dir.glob("*"):
         if item.is_dir():
@@ -156,16 +163,17 @@ def main():
         data = create_dataset(base_dir)
 
         if not data:
-            print("Error: No valid data generated")
+            print("Error: 유효한 데이터가 생성되지 않았습니다.")
             return
 
         # JSON 파일로 저장
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         
-        print(f"데이터셋이 성공적으로 생성되었습니다: {output_file}")
+        print(f"\n데이터셋이 성공적으로 생성되었습니다: {output_file}")
         
         # 통계 출력
+        print("\n과목별 문제 수:")
         for subject_num, subject_data in data.items():
             total_questions = sum(len(topic["sets"]) for topic in subject_data["topics"].values())
             print(f"과목 {subject_num} ({subject_data['name']}): {total_questions}개 문제")
